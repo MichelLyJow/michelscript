@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Michel Studio — Script Shield & Paste</title>
+<style>
+  :root {
+    --bg-0: #060606;
+    --glass: rgba(255,255,255,0.07);
+    --glass-strong: rgba(255,255,255,0.12);
+    --border: rgba(255,255,255,0.14);
+    --border-soft: rgba(255,255,255,0.09);
+    --acc: #ffffff;
+    --acc-dim: #d0d0d0;
+    --acc-2: #ffffff;
+    --text: #f4f4f5;
+    --text-dim: #a6a6ab;
+    --danger: #ff6b6b;
+    --ok: #ffffff;
+    --radius: 16px;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background:
+      radial-gradient(circle at 10% 5%, rgba(255,255,255,0.08), transparent 45%),
+      radial-gradient(circle at 90% 95%, rgba(255,255,255,0.07), transparent 45%),
+      var(--bg-0);
+    color: var(--text);
+    font-family: 'Segoe UI', ui-sans-serif, system-ui, -apple-system, Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body { display: flex; justify-content: center; padding: 22px 16px 32px; }
+
+  .stage { width: 100%; max-width: 1080px; }
+  .shell { display: grid; grid-template-columns: 210px 1fr; gap: 14px; align-items: start; }
+  @media (max-width: 820px) { .shell { grid-template-columns: 1fr; gap: 12px; } }
+
+  .glass {
+    background: linear-gradient(180deg, var(--glass-strong), var(--glass));
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 20px 45px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+
+  /* ---- Rail ---- */
+  .rail { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  .brand-mark { display: flex; align-items: center; gap: 10px; }
+  .brand-badge {
+    width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--acc-dim), var(--acc) 65%, var(--acc-2));
+    display: flex; align-items: center; justify-content: center;
+    color: #000000; font-weight: 800; font-size: 13px; letter-spacing: -0.02em;
+    box-shadow: 0 6px 16px rgba(255,255,255,0.32);
+  }
+  .brand-mark h1 { font-size: 15.5px; font-weight: 700; letter-spacing: -0.01em; margin: 0; line-height: 1.2; }
+  .brand-mark p.tagline { margin: 1px 0 0; font-size: 11px; color: var(--text-dim); }
+
+  .status-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; align-self: flex-start;
+    border-radius: 999px; background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.22);
+    font-size: 10.5px; color: var(--acc-dim); white-space: nowrap; font-weight: 600;
+  }
+  .status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 6px var(--acc); }
+
+  .nav { display: flex; flex-direction: column; gap: 4px; }
+  .nav-btn {
+    display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-radius: 10px;
+    border: 1px solid transparent; background: transparent; color: var(--text-dim);
+    font-size: 12.5px; font-weight: 600; cursor: pointer; text-align: left;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .nav-btn svg { flex-shrink: 0; opacity: 0.8; }
+  .nav-btn:hover:not(.active) { background: rgba(0,0,0,0.04); color: var(--text); }
+  .nav-btn.active { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); color: var(--acc-dim); }
+
+  @media (max-width: 820px) {
+    .rail { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px 14px; }
+    .rail .status-chip { margin-left: auto; }
+    .nav { flex-direction: row; width: 100%; order: 3; }
+    .nav-btn { flex: 1; justify-content: center; }
+  }
+
+  /* ---- Content ---- */
+  .content { padding: 18px; }
+  @media (max-width: 820px) { .content { padding: 16px; } }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .setup-banner {
+    display: none; align-items: flex-start; gap: 10px; padding: 11px 13px; margin-bottom: 14px;
+    border-radius: 11px; background: rgba(214,142,20,0.09); border: 1px solid rgba(214,142,20,0.28);
+    font-size: 11.5px; color: #ffcf80; line-height: 1.45;
+  }
+  .setup-banner.show { display: flex; }
+  .setup-banner svg { flex-shrink: 0; margin-top: 1px; }
+  .setup-banner strong { color: #ffdca6; }
+  .setup-banner code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; font-size: 10.5px; }
+
+  .panel-heading { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; gap: 8px; }
+  .panel-heading h2 { font-size: 14.5px; font-weight: 700; margin: 0; }
+  .panel-heading p { margin: 0; font-size: 11px; color: var(--text-dim); }
+
+  .io-switch, .mode-switch, .fmt-switch { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .io-pill, .mode-pill, .fmt-pill {
+    padding: 6px 13px; border-radius: 999px; border: 1px solid var(--border-soft);
+    background: rgba(255,255,255,0.06); color: var(--text-dim); font-size: 11.5px; font-weight: 600;
+    cursor: pointer;
+  }
+  .io-pill.active, .mode-pill.active, .fmt-pill.active { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.3); color: var(--acc-dim); }
+  .io-pill .badge { opacity: 0.65; font-weight: 400; margin-left: 4px; }
+
+  .stat-line { font-size: 11px; color: var(--text-dim); margin: -4px 0 10px; }
+  .stat-line strong { color: var(--text); }
+
+  .dropzone {
+    margin-bottom: 12px; border: 1px dashed var(--border); border-radius: 12px;
+    padding: 11px 14px; background: rgba(255,255,255,0.05);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .dropzone.drag-over { border-color: var(--acc); background: rgba(255,255,255,0.08); }
+  .dropzone svg { flex-shrink: 0; opacity: 0.55; }
+  .dropzone-text { flex: 1; min-width: 0; }
+  .dropzone-text strong { display: block; font-size: 12.5px; font-weight: 600; }
+  .dropzone-text span { font-size: 10.5px; color: var(--text-dim); }
+  .file-btn {
+    font-size: 11.5px; padding: 6px 12px; border-radius: 8px;
+    border: 1px solid var(--border-soft); background: rgba(255,255,255,0.10);
+    color: var(--text); cursor: pointer; white-space: nowrap;
+  }
+  input[type="file"] { display: none; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .field-label { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 600; color: var(--text-dim); }
+  .field-label .count { font-weight: 400; opacity: 0.75; }
+
+  textarea, input[type="text"], input[type="password"] {
+    width: 100%; background: rgba(255,255,255,0.09);
+    border: 1px solid var(--border-soft); border-radius: 11px; padding: 12px 13px;
+    color: var(--text); font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    font-size: 12.3px; line-height: 1.55; outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  textarea { height: 150px; resize: vertical; }
+  textarea::placeholder, input::placeholder { color: #6f6f74; }
+  textarea:focus, input:focus { border-color: var(--acc-dim); box-shadow: 0 0 0 3px rgba(255,255,255,0.14); }
+  textarea[readonly] { color: #d9d9d9; }
+
+  .controls { display: flex; gap: 9px; flex-wrap: wrap; }
+  .btn {
+    flex: 1; min-width: 110px; padding: 11px 14px; border: none; border-radius: 11px;
+    font-weight: 700; font-size: 12.8px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  .btn-primary { background: linear-gradient(135deg, var(--acc-dim), var(--acc) 60%, var(--acc-2)); color: #000000; box-shadow: 0 8px 20px rgba(255,255,255,0.18); }
+  .btn-secondary { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--border-soft); }
+  .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.14); }
+  .btn-danger { background: rgba(255,107,107,0.1); color: #ff9b9b; border: 1px solid rgba(255,107,107,0.25); flex: 0 0 auto; min-width: 84px; }
+  .btn-icon { flex: 0 0 auto; min-width: 0; padding: 9px 12px; }
+
+  @media (max-width: 480px) { .controls .btn, .controls .btn-danger { flex: 1 1 47%; } }
+
+  .toggle-row { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+  .toggle-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--acc); }
+  .toggle-row label { font-size: 12px; color: var(--text); font-weight: 600; cursor: pointer; }
+  .toggle-row .hint { font-size: 10.5px; color: var(--text-dim); margin-left: 2px; }
+
+  .expiry-row { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; flex-wrap: wrap; }
+  .expiry-row label { font-size: 11px; color: var(--text-dim); font-weight: 600; }
+  select {
+    background: rgba(255,255,255,0.10); border: 1px solid var(--border-soft); border-radius: 8px;
+    color: var(--text); padding: 6px 10px; font-size: 11.5px; outline: none;
+  }
+
+  .link-result { display: none; margin-top: 14px; padding: 13px; border-radius: 11px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.25); }
+  .link-result.show { display: block; }
+  .link-result .link-label { font-size: 10.5px; color: var(--ok); font-weight: 700; margin-bottom: 7px; }
+  .link-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .link-row input { flex: 1 1 100%; min-width: 0; padding: 9px 10px; font-size: 12px; }
+  .link-row button { flex: 1; padding: 9px 14px; border-radius: 8px; border: none; background: var(--ok); color: #000000; font-weight: 700; font-size: 11.5px; cursor: pointer; }
+  .share-row { display: flex; gap: 7px; flex-wrap: wrap; }
+  .share-row a, .share-row button {
+    flex: 1; min-width: 90px; text-align: center; text-decoration: none; padding: 8px 10px;
+    border-radius: 8px; border: 1px solid var(--border-soft); background: rgba(255,255,255,0.08);
+    color: var(--text); font-size: 11.5px; font-weight: 600; cursor: pointer;
+  }
+
+  .file-pill { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-soft); border-radius: 10px; font-size: 12px; margin-bottom: 12px; }
+  .file-pill span.name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-pill span.size { color: var(--text-dim); font-size: 10.5px; }
+  .file-pill button { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 15px; line-height: 1; }
+
+  .progress-track { width: 100%; height: 4px; border-radius: 999px; background: rgba(0,0,0,0.08); overflow: hidden; margin: 12px 0 0; display: none; }
+  .progress-track.show { display: block; }
+  .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--acc-dim), var(--acc)); transition: width 0.2s ease; }
+
+  .recent-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 8px;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border-soft); border-radius: 11px;
+  }
+  .recent-item .rtype {
+    width: 26px; height: 26px; border-radius: 8px; background: rgba(255,255,255,0.12); color: var(--acc-dim);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .recent-item .rinfo { flex: 1; min-width: 0; }
+  .recent-item .rinfo strong { display: block; font-size: 12px; font-family: Consolas, monospace; }
+  .recent-item .rinfo span { font-size: 10.5px; color: var(--text-dim); }
+  .recent-item .ractions { display: flex; gap: 6px; }
+  .recent-item .ractions button {
+    border: none; background: rgba(0,0,0,0.05); border-radius: 7px; padding: 6px 9px;
+    font-size: 11px; cursor: pointer; color: var(--text);
+  }
+  .empty-state { text-align: center; padding: 30px 10px; color: var(--text-dim); font-size: 12.5px; }
+
+  .viewer-meta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; font-size: 11px; color: var(--text-dim); }
+  .viewer-meta strong { color: var(--text); }
+  .viewer-file-card { display: flex; align-items: center; gap: 13px; padding: 16px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-soft); border-radius: 12px; }
+  .viewer-file-card svg { flex-shrink: 0; opacity: 0.75; }
+  .viewer-file-card .info { flex: 1; min-width: 0; }
+  .viewer-file-card .info strong { display: block; font-size: 13px; margin-bottom: 2px; word-break: break-all; }
+  .viewer-file-card .info span { font-size: 11px; color: var(--text-dim); }
+  .expired-card { text-align: center; padding: 28px 16px; color: var(--text-dim); }
+  .expired-card svg { margin-bottom: 10px; opacity: 0.5; }
+  .expired-card h2 { color: var(--text); font-size: 16px; margin-bottom: 5px; }
+  .lock-card { text-align: center; padding: 26px 16px; }
+  .lock-card svg { margin-bottom: 10px; opacity: 0.6; }
+  .lock-card h2 { font-size: 15px; margin: 0 0 10px; }
+  .lock-card input { text-align: center; margin-bottom: 10px; }
+  .lock-error { color: var(--danger); font-size: 11.5px; margin-top: -4px; margin-bottom: 8px; display: none; }
+  .lock-error.show { display: block; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(16px);
+    background: rgba(20,20,20,0.85); border: 1px solid var(--border); color: var(--text);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    padding: 10px 16px; border-radius: 10px; font-size: 12px;
+    display: flex; align-items: center; gap: 8px; opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease; z-index: 10; box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 6px var(--acc); }
+  .toast.err .dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="shell">
+
+    <!-- RAIL -->
+    <aside class="rail glass">
+      <div class="brand-mark">
+        <div class="brand-badge">MS</div>
+        <div>
+          <h1 id="pageTitle">Michel Studio</h1>
+          <p class="tagline" id="pageTagline">Encode, share, done</p>
+        </div>
+      </div>
+
+      <div class="status-chip"><span class="status-dot"></span><span id="statusText">Ready</span></div>
+
+      <nav class="nav">
+        <button class="nav-btn active" id="tabBtnShield" onclick="switchTab('shield')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l7 3.5v6c0 5-3 8.5-7 10.5-4-2-7-5.5-7-10.5v-6L12 2z" stroke-linejoin="round"/></svg>
+          Script Shield
+        </button>
+        <button class="nav-btn" id="tabBtnPaste" onclick="switchTab('paste')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 007.07 0l2.83-2.83a5 5 0 10-7.07-7.07L11.5 4.5" stroke-linecap="round"/><path d="M14 11a5 5 0 00-7.07 0L4.1 13.83a5 5 0 107.07 7.07L12.5 19.5" stroke-linecap="round"/></svg>
+          Paste &amp; Share
+        </button>
+        <button class="nav-btn" id="tabBtnRecent" onclick="switchTab('recent')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round"/></svg>
+          Recent links
+        </button>
+      </nav>
+    </aside>
+
+    <!-- CONTENT -->
+    <main class="content glass">
+
+      <div id="mainView">
+        <div class="setup-banner" id="setupBanner">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffcf80" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.9L2.7 17.5a1.8 1.8 0 001.55 2.7h15.5a1.8 1.8 0 001.55-2.7L13.7 3.9a1.8 1.8 0 00-3.4 0z" stroke-linejoin="round"/></svg>
+          <span><strong>Paste &amp; Share needs a Firebase project.</strong> Fill in <code>FIREBASE_CONFIG</code> in the script, then redeploy.</span>
+        </div>
+
+        <!-- TAB: Script Shield -->
+        <section class="tab-panel active" id="tabShield">
+          <div class="panel-heading"><h2>Script Shield</h2><p>Byte-level encoder</p></div>
+
+          <label class="dropzone" id="dropzoneShield" for="fileInputShield">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a6a6ab" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div class="dropzone-text"><strong id="dropzoneShieldTitle">Drop a script, or browse</strong><span>.lua, .txt, .js, .html</span></div>
+            <span class="file-btn">Browse</span>
+            <input type="file" id="fileInputShield" accept=".lua,.txt,.js,.html">
+          </label>
+
+          <div class="fmt-switch">
+            <button class="fmt-pill active" id="fmtDecBtn" onclick="setEncodeFormat('dec')">Decimal \\65</button>
+            <button class="fmt-pill" id="fmtHexBtn" onclick="setEncodeFormat('hex')">Hex \\x41</button>
+            <button class="fmt-pill" id="fmtMixBtn" onclick="setEncodeFormat('mix')">Mixed \\65\\x41</button>
+          </div>
+
+          <div class="io-switch">
+            <button class="io-pill active" id="ioSourceBtn" onclick="setIoView('source')">Source <span class="badge" id="ioSourceBadge">0</span></button>
+            <button class="io-pill" id="ioOutputBtn" onclick="setIoView('output')">Output <span class="badge" id="ioOutputBadge">0</span></button>
+          </div>
+
+          <div class="field" id="sourceField" style="margin-bottom: 6px;">
+            <textarea id="inputCode" placeholder="Paste your script here..." spellcheck="false"></textarea>
+          </div>
+          <div class="field" id="outputField" style="display:none; margin-bottom: 6px;">
+            <textarea id="outputCode" readonly placeholder="Encoded result will appear here..." spellcheck="false"></textarea>
+          </div>
+          <div class="stat-line" id="statLine" style="display:none;"></div>
+
+          <div class="controls" style="margin-top: 8px;">
+            <button class="btn btn-primary" onclick="processEncode()">Encode script</button>
+            <button class="btn btn-secondary" id="copyBtn" onclick="copyOutput()" disabled>Copy</button>
+            <button class="btn btn-secondary" id="downloadBtn" onclick="downloadEncoded()" disabled>Download</button>
+            <button class="btn btn-danger" onclick="clearShield()">Clear</button>
+          </div>
+        </section>
+
+        <!-- TAB: Paste & Share -->
+        <section class="tab-panel" id="tabPaste">
+          <div class="panel-heading"><h2>Paste &amp; Share</h2><p>Text or file → one link</p></div>
+
+          <div class="mode-switch">
+            <button class="mode-pill active" id="modeTextBtn" onclick="setPasteMode('text')">Text</button>
+            <button class="mode-pill" id="modeFileBtn" onclick="setPasteMode('file')">File</button>
+          </div>
+
+          <div id="pasteTextMode">
+            <div class="field">
+              <textarea id="pasteText" placeholder="Paste or type anything to share..." spellcheck="false" style="height: 130px;"></textarea>
+            </div>
+          </div>
+
+          <div id="pasteFileMode" style="display:none;">
+            <label class="dropzone" id="dropzonePaste" for="fileInputPaste">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a6a6ab" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <div class="dropzone-text"><strong>Drop a file, or browse</strong><span>Uploaded to Cloudinary</span></div>
+              <span class="file-btn">Browse</span>
+              <input type="file" id="fileInputPaste">
+            </label>
+            <div class="file-pill" id="filePill" style="display:none;">
+              <span class="name" id="filePillName"></span>
+              <span class="size" id="filePillSize"></span>
+              <button onclick="clearPasteFile()">✕</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <input type="password" id="pastePassword" placeholder="Optional password to view (leave blank for none)">
+          </div>
+
+          <div class="toggle-row">
+            <input type="checkbox" id="burnAfterRead">
+            <label for="burnAfterRead">Burn after reading</label>
+            <span class="hint">— deletes the link the moment it's opened once</span>
+          </div>
+
+          <div class="expiry-row">
+            <label for="expirySelect">Expires</label>
+            <select id="expirySelect">
+              <option value="3600000">1 hour</option>
+              <option value="86400000" selected>1 day</option>
+              <option value="604800000">7 days</option>
+              <option value="0">Never</option>
+            </select>
+          </div>
+
+          <div class="controls">
+            <button class="btn btn-primary" id="createLinkBtn" onclick="createPaste()">Create link</button>
+            <button class="btn btn-danger" onclick="clearPaste()">Clear</button>
+          </div>
+
+          <div class="progress-track" id="uploadProgress"><div class="progress-fill" id="uploadProgressFill"></div></div>
+
+          <div class="link-result" id="linkResult">
+            <div class="link-label">LINK READY</div>
+            <div class="link-row">
+              <input type="text" id="linkOutput" readonly>
+              <button onclick="copyLink()">Copy</button>
+            </div>
+            <div class="share-row">
+              <a id="shareWhatsapp" href="#" target="_blank" rel="noopener">WhatsApp</a>
+              <a id="shareTelegram" href="#" target="_blank" rel="noopener">Telegram</a>
+              <button id="shareNative" onclick="nativeShare()" style="display:none;">Share…</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: Recent links (local, this device only) -->
+        <section class="tab-panel" id="tabRecent">
+          <div class="panel-heading"><h2>Recent links</h2><p>Saved on this device only</p></div>
+          <div id="recentList"></div>
+          <div class="controls" style="margin-top: 8px;">
+            <button class="btn btn-secondary" onclick="clearRecentList()">Clear list</button>
+          </div>
+        </section>
+      </div>
+
+      <div id="viewerView" style="display:none;"></div>
+
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="dot"></span><span id="toastMsg"></span></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCPJd_cOF7xbFMhFjvFOtanwGNp7-_hzd0",
+    authDomain: "storage-lua.firebaseapp.com",
+    databaseURL: "https://storage-lua-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "storage-lua",
+    storageBucket: "storage-lua.firebasestorage.app",
+    messagingSenderId: "319677346248",
+    appId: "1:319677346248:web:3833a8266fc372abdd10fd"
+  };
+  const CLOUDINARY_CLOUD_NAME = "ejbckfyt";
+  const CLOUDINARY_UPLOAD_PRESET = "y76u8inw";
+
+  let dbReady = false;
+  let db = null;
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    dbReady = true;
+  } catch (e) {
+    console.warn("Firebase not configured yet:", e.message);
+  }
+
+  // ---------- Toast ----------
+  const toast = document.getElementById('toast');
+  const toastMsg = document.getElementById('toastMsg');
+  let toastTimer = null;
+  function showToast(msg, isError) {
+    toastMsg.textContent = msg;
+    toast.classList.toggle('err', !!isError);
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+  function flashButton(btn, label) {
+    const original = btn.textContent;
+    btn.textContent = label;
+    setTimeout(() => { btn.textContent = original; }, 1300);
+  }
+
+  // ---------- Tabs ----------
+  function switchTab(name) {
+    ['Shield','Paste','Recent'].forEach(n => {
+      document.getElementById('tab' + n).classList.toggle('active', n.toLowerCase() === name);
+      document.getElementById('tabBtn' + n).classList.toggle('active', n.toLowerCase() === name);
+    });
+    document.getElementById('setupBanner').classList.toggle('show', name === 'paste' && !dbReady);
+    if (name === 'recent') renderRecentList();
+  }
+
+  /* ============================ SCRIPT SHIELD ============================ */
+  const inputCode = document.getElementById('inputCode');
+  const outputCode = document.getElementById('outputCode');
+  const copyBtn = document.getElementById('copyBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  let encodeFormat = 'dec';
+
+  function setEncodeFormat(fmt) {
+    encodeFormat = fmt;
+    document.getElementById('fmtDecBtn').classList.toggle('active', fmt === 'dec');
+    document.getElementById('fmtHexBtn').classList.toggle('active', fmt === 'hex');
+    document.getElementById('fmtMixBtn').classList.toggle('active', fmt === 'mix');
+  }
+
+  function setIoView(which) {
+    document.getElementById('sourceField').style.display = which === 'source' ? 'flex' : 'none';
+    document.getElementById('outputField').style.display = which === 'output' ? 'flex' : 'none';
+    document.getElementById('ioSourceBtn').classList.toggle('active', which === 'source');
+    document.getElementById('ioOutputBtn').classList.toggle('active', which === 'output');
+  }
+
+  document.getElementById('fileInputShield').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      inputCode.value = evt.target.result;
+      updateShieldCounts();
+      document.getElementById('dropzoneShieldTitle').textContent = file.name + ' loaded';
+    };
+    reader.readAsText(file);
+  });
+
+  const dropzoneShield = document.getElementById('dropzoneShield');
+  ['dragenter','dragover'].forEach(evt => dropzoneShield.addEventListener(evt, e => { e.preventDefault(); dropzoneShield.classList.add('drag-over'); }));
+  ['dragleave','drop'].forEach(evt => dropzoneShield.addEventListener(evt, e => { e.preventDefault(); dropzoneShield.classList.remove('drag-over'); }));
+  dropzoneShield.addEventListener('drop', e => {
+    const file = e.dataTransfer.files[0];
+    if (file) { document.getElementById('fileInputShield').files = e.dataTransfer.files; document.getElementById('fileInputShield').dispatchEvent(new Event('change')); }
+  });
+
+  function updateShieldCounts() {
+    document.getElementById('ioSourceBadge').textContent = inputCode.value.length.toLocaleString();
+    document.getElementById('ioOutputBadge').textContent = outputCode.value.length.toLocaleString();
+  }
+  inputCode.addEventListener('input', updateShieldCounts);
+
+  function processEncode() {
+    const input = inputCode.value;
+    if (!input.trim()) { showToast('Paste or load a script first', true); return; }
+    const bytes = [];
+    for (let i = 0; i < input.length; i++) {
+      const code = input.charCodeAt(i);
+      const hex = '\\x' + code.toString(16).padStart(2, '0');
+      const dec = '\\' + code;
+      if (encodeFormat === 'hex') bytes.push(hex);
+      else if (encodeFormat === 'mix') bytes.push(Math.random() < 0.5 ? dec : hex);
+      else bytes.push(dec);
+    }
+    const escapedBytes = bytes.join('');
+    const template = `-- [[ Protected by Michel Script ]] --\nlocal _raw = "${escapedBytes}"\nlocal _f = load or getfenv()[string.char(108,111,97,100,115,116,114,105,110,103)]\nif _f then\n    _f(_raw)()\nend`;
+    outputCode.value = template;
+    updateShieldCounts();
+    copyBtn.disabled = false;
+    downloadBtn.disabled = false;
+    setIoView('output');
+
+    const growth = input.length ? Math.round(((template.length - input.length) / input.length) * 100) : 0;
+    const statLine = document.getElementById('statLine');
+    statLine.style.display = 'block';
+    statLine.innerHTML = `<strong>${input.length.toLocaleString()}</strong> → <strong>${template.length.toLocaleString()}</strong> chars (${growth >= 0 ? '+' : ''}${growth}%)`;
+
+    showToast('Script encoded');
+  }
+  function copyOutput() {
+    if (!outputCode.value) return;
+    navigator.clipboard.writeText(outputCode.value)
+      .then(() => { showToast('Copied to clipboard'); flashButton(copyBtn, '✓ Copied'); })
+      .catch(() => showToast('Copy failed', true));
+  }
+  function downloadEncoded() {
+    const content = outputCode.value;
+    if (!content) return;
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'michel_script_' + Date.now() + '.lua';
+    link.click();
+    URL.revokeObjectURL(link.href);
+    showToast('Download started');
+  }
+  function clearShield() {
+    inputCode.value = ''; outputCode.value = '';
+    document.getElementById('fileInputShield').value = '';
+    document.getElementById('dropzoneShieldTitle').textContent = 'Drop a script, or browse';
+    document.getElementById('statLine').style.display = 'none';
+    copyBtn.disabled = true; downloadBtn.disabled = true;
+    setIoView('source');
+    updateShieldCounts();
+  }
+
+  /* ============================ PASTE & SHARE ============================ */
+  let pasteMode = 'text';
+  let pendingFile = null;
+
+  function setPasteMode(mode) {
+    pasteMode = mode;
+    document.getElementById('modeTextBtn').classList.toggle('active', mode === 'text');
+    document.getElementById('modeFileBtn').classList.toggle('active', mode === 'file');
+    document.getElementById('pasteTextMode').style.display = mode === 'text' ? 'block' : 'none';
+    document.getElementById('pasteFileMode').style.display = mode === 'file' ? 'block' : 'none';
+  }
+
+  const pasteText = document.getElementById('pasteText');
+  const dropzonePaste = document.getElementById('dropzonePaste');
+  const fileInputPaste = document.getElementById('fileInputPaste');
+  const filePill = document.getElementById('filePill');
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function handlePasteFile(file) {
+    if (!file) return;
+    pendingFile = file;
+    document.getElementById('filePillName').textContent = file.name;
+    document.getElementById('filePillSize').textContent = formatBytes(file.size);
+    filePill.style.display = 'flex';
+  }
+  fileInputPaste.addEventListener('change', e => handlePasteFile(e.target.files[0]));
+  ['dragenter','dragover'].forEach(evt => dropzonePaste.addEventListener(evt, e => { e.preventDefault(); dropzonePaste.classList.add('drag-over'); }));
+  ['dragleave','drop'].forEach(evt => dropzonePaste.addEventListener(evt, e => { e.preventDefault(); dropzonePaste.classList.remove('drag-over'); }));
+  dropzonePaste.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handlePasteFile(f); });
+
+  function clearPasteFile() {
+    pendingFile = null;
+    fileInputPaste.value = '';
+    filePill.style.display = 'none';
+  }
+
+  function clearPaste() {
+    pasteText.value = '';
+    document.getElementById('pastePassword').value = '';
+    document.getElementById('burnAfterRead').checked = false;
+    clearPasteFile();
+    document.getElementById('linkResult').classList.remove('show');
+    document.getElementById('uploadProgress').classList.remove('show');
+  }
+
+  // Mixed case + digits + URL-safe symbols, not just numbers
+  function genId(len) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz0123456789-_';
+    const arr = new Uint32Array(len);
+    crypto.getRandomValues(arr);
+    let out = '';
+    for (let i = 0; i < len; i++) out += chars[arr[i] % chars.length];
+    return out;
+  }
+
+  async function sha256(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function uploadToCloudinary(file, onProgress) {
+    return new Promise((resolve, reject) => {
+      const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url);
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
+        else reject(new Error('Cloudinary upload failed (' + xhr.status + ')'));
+      };
+      xhr.onerror = () => reject(new Error('Network error during upload'));
+      xhr.send(formData);
+    });
+  }
+
+  function pushRecent(entry) {
+    try {
+      const list = JSON.parse(localStorage.getItem('michelRecentPastes') || '[]');
+      list.unshift(entry);
+      localStorage.setItem('michelRecentPastes', JSON.stringify(list.slice(0, 25)));
+    } catch (e) { /* localStorage unavailable — skip silently */ }
+  }
+
+  async function createPaste() {
+    if (!dbReady) { showToast('Firebase not configured', true); return; }
+    const btn = document.getElementById('createLinkBtn');
+    const expiryMs = parseInt(document.getElementById('expirySelect').value, 10);
+    const expiresAt = expiryMs > 0 ? Date.now() + expiryMs : null;
+    const burn = document.getElementById('burnAfterRead').checked;
+    const password = document.getElementById('pastePassword').value;
+    const id = genId(10);
+
+    btn.disabled = true;
+
+    try {
+      const passwordHash = password ? await sha256(password) : null;
+
+      if (pasteMode === 'text') {
+        const content = pasteText.value;
+        if (!content.trim()) { showToast('Write or paste something first', true); btn.disabled = false; return; }
+        await db.ref('pastes/' + id).set({
+          type: 'text', content: content, createdAt: Date.now(), expiresAt: expiresAt,
+          burn: burn, passwordHash: passwordHash
+        });
+        finishPaste(id, 'text');
+      } else {
+        if (!pendingFile) { showToast('Choose a file first', true); btn.disabled = false; return; }
+        const progressTrack = document.getElementById('uploadProgress');
+        const progressFill = document.getElementById('uploadProgressFill');
+        progressTrack.classList.add('show');
+        progressFill.style.width = '0%';
+        const result = await uploadToCloudinary(pendingFile, (frac) => { progressFill.style.width = Math.round(frac * 100) + '%'; });
+        await db.ref('pastes/' + id).set({
+          type: 'file', fileUrl: result.secure_url, fileName: pendingFile.name,
+          fileSize: pendingFile.size, resourceType: result.resource_type || 'raw',
+          createdAt: Date.now(), expiresAt: expiresAt, burn: burn, passwordHash: passwordHash
+        });
+        progressTrack.classList.remove('show');
+        finishPaste(id, 'file', pendingFile.name);
+      }
+    } catch (err) {
+      showToast(err.message || 'Could not create link', true);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function finishPaste(id, type, label) {
+    const shareUrl = location.origin + location.pathname + '?p=' + id;
+    document.getElementById('linkOutput').value = shareUrl;
+    document.getElementById('linkResult').classList.add('show');
+    document.getElementById('shareWhatsapp').href = 'https://wa.me/?text=' + encodeURIComponent(shareUrl);
+    document.getElementById('shareTelegram').href = 'https://t.me/share/url?url=' + encodeURIComponent(shareUrl);
+    document.getElementById('shareNative').style.display = navigator.share ? 'block' : 'none';
+    window.__lastShareUrl = shareUrl;
+    pushRecent({ id, type, label: label || null, createdAt: Date.now() });
+    showToast('Link created');
+  }
+
+  function nativeShare() {
+    if (navigator.share && window.__lastShareUrl) {
+      navigator.share({ title: 'Michel Studio paste', url: window.__lastShareUrl }).catch(() => {});
+    }
+  }
+
+  function copyLink() {
+    const el = document.getElementById('linkOutput');
+    el.select();
+    const btn = document.querySelector('.link-row button');
+    navigator.clipboard.writeText(el.value)
+      .then(() => { showToast('Link copied'); flashButton(btn, '✓ Copied'); })
+      .catch(() => showToast('Copy failed', true));
+  }
+
+  /* ============================ RECENT LINKS (local) ============================ */
+  function renderRecentList() {
+    const container = document.getElementById('recentList');
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem('michelRecentPastes') || '[]'); } catch (e) {}
+    if (!list.length) {
+      container.innerHTML = '<div class="empty-state">No links created on this device yet.</div>';
+      return;
+    }
+    container.innerHTML = list.map(item => {
+      const url = location.origin + location.pathname + '?p=' + item.id;
+      const when = new Date(item.createdAt).toLocaleString();
+      const label = item.type === 'file' ? (item.label || 'File') : 'Text paste';
+      const icon = item.type === 'file'
+        ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>'
+        : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round"/></svg>';
+      return `
+        <div class="recent-item">
+          <div class="rtype">${icon}</div>
+          <div class="rinfo"><strong>${item.id}</strong><span>${label} · ${when}</span></div>
+          <div class="ractions">
+            <button onclick="copyRecent('${url}')">Copy</button>
+            <a href="${url}" target="_blank" rel="noopener"><button type="button">Open</button></a>
+          </div>
+        </div>`;
+    }).join('');
+  }
+  function copyRecent(url) {
+    navigator.clipboard.writeText(url).then(() => showToast('Link copied')).catch(() => showToast('Copy failed', true));
+  }
+  function clearRecentList() {
+    localStorage.removeItem('michelRecentPastes');
+    renderRecentList();
+    showToast('Recent list cleared');
+  }
+
+  /* ============================ VIEWER MODE ============================ */
+  function insertCloudinaryAttachment(url) {
+    return url.replace('/upload/', '/upload/fl_attachment/');
+  }
+
+  function renderTextResult(viewer, backLink, data, created, expiry) {
+    viewer.innerHTML = backLink + `
+      <div class="viewer-meta"><span>Created: <strong>${created}</strong></span><span>Expires: <strong>${expiry}</strong></span></div>
+      <textarea readonly style="width:100%;height:240px;" id="viewerText"></textarea>
+      <div class="controls" style="margin-top:12px;"><button class="btn btn-primary" onclick="copyViewerText()">Copy content</button></div>`;
+    document.getElementById('viewerText').value = data.content;
+  }
+  function renderFileResult(viewer, backLink, data, created, expiry) {
+    const dlUrl = insertCloudinaryAttachment(data.fileUrl);
+    viewer.innerHTML = backLink + `
+      <div class="viewer-meta"><span>Created: <strong>${created}</strong></span><span>Expires: <strong>${expiry}</strong></span></div>
+      <div class="viewer-file-card">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+        <div class="info"><strong>${data.fileName}</strong><span>${formatBytes(data.fileSize || 0)}</span></div>
+      </div>
+      <div class="controls" style="margin-top:12px;"><a class="btn btn-primary" style="text-decoration:none;" href="${dlUrl}" target="_blank" rel="noopener">Download file</a></div>`;
+  }
+
+  async function boot() {
+    const params = new URLSearchParams(location.search);
+    const id = params.get('p');
+    if (!id) return;
+
+    document.getElementById('mainView').style.display = 'none';
+    document.getElementById('pageTagline').textContent = 'Shared paste viewer';
+    document.getElementById('statusText').textContent = 'Viewing';
+    const viewer = document.getElementById('viewerView');
+    viewer.style.display = 'block';
+    const backLink = `
+      <div style="margin-bottom:14px;">
+        <a href="${location.origin + location.pathname}" style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text-dim);text-decoration:none;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Back to Michel Studio
+        </a>
+      </div>`;
+    viewer.innerHTML = backLink + '<p style="color:var(--text-dim);font-size:12px;">Loading paste…</p>';
+
+    if (!dbReady) {
+      viewer.innerHTML = backLink + '<div class="expired-card"><h2>Not configured</h2><p>Firebase config is missing on this deployment.</p></div>';
+      return;
+    }
+
+    try {
+      const ref = db.ref('pastes/' + id);
+      const snap = await ref.once('value');
+      const data = snap.val();
+
+      if (!data) {
+        viewer.innerHTML = backLink + `<div class="expired-card"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#a6a6ab" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6" stroke-linecap="round"/></svg><h2>Paste not found</h2><p>This link is invalid, expired, or was already read (burn-after-reading).</p></div>`;
+        return;
+      }
+      if (data.expiresAt && Date.now() > data.expiresAt) {
+        await ref.remove();
+        viewer.innerHTML = backLink + `<div class="expired-card"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#a6a6ab" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round"/></svg><h2>This link has expired</h2><p>Ask the sender to create a new one.</p></div>`;
+        return;
+      }
+
+      const created = new Date(data.createdAt).toLocaleString();
+      const expiry = data.expiresAt ? new Date(data.expiresAt).toLocaleString() : 'Never';
+      const reveal = async () => {
+        if (data.type === 'text') renderTextResult(viewer, backLink, data, created, expiry);
+        else renderFileResult(viewer, backLink, data, created, expiry);
+        if (data.burn) await ref.remove();
+      };
+
+      if (data.passwordHash) {
+        viewer.innerHTML = backLink + `
+          <div class="lock-card">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.6"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+            <h2>This paste is password protected</h2>
+            <input type="password" id="unlockInput" placeholder="Enter password">
+            <div class="lock-error" id="unlockError">Wrong password — try again.</div>
+            <div class="controls"><button class="btn btn-primary" onclick="tryUnlock()">Unlock</button></div>
+          </div>`;
+        window.__unlock = async () => {
+          const val = document.getElementById('unlockInput').value;
+          const hash = await sha256(val);
+          if (hash === data.passwordHash) { await reveal(); }
+          else { document.getElementById('unlockError').classList.add('show'); }
+        };
+        return;
+      }
+
+      await reveal();
+    } catch (err) {
+      viewer.innerHTML = backLink + `<div class="expired-card"><h2>Could not load</h2><p>${err.message}</p></div>`;
+    }
+  }
+  function tryUnlock() { if (window.__unlock) window.__unlock(); }
+
+  function copyViewerText() {
+    const el = document.getElementById('viewerText');
+    navigator.clipboard.writeText(el.value).then(() => showToast('Copied to clipboard')).catch(() => showToast('Copy failed', true));
+  }
+
+  boot();
+</script>
+</body>
+</html>
